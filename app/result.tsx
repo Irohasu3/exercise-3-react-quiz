@@ -4,8 +4,8 @@ import { useLocalSearchParams, router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function ResultScreen() {
-  const { score } = useLocalSearchParams();
-  const currentScore = Number(score);
+  const { score } = useLocalSearchParams<{ score: string }>();
+  const currentScore = Number(score ?? 0);
 
   const [highScore, setHighScore] = useState<number>(0);
 
@@ -16,18 +16,13 @@ export default function ResultScreen() {
   const loadHighScore = async () => {
     try {
       const savedHighScore = await AsyncStorage.getItem("HIGH_SCORE");
-      const parsedHighScore = savedHighScore
-        ? Number(savedHighScore)
-        : 0;
+      const parsedHighScore = savedHighScore ? Number(savedHighScore) : 0;
+
+      const newHighScore = Math.max(parsedHighScore, currentScore);
+      setHighScore(newHighScore);
 
       if (currentScore > parsedHighScore) {
-        await AsyncStorage.setItem(
-          "HIGH_SCORE",
-          currentScore.toString()
-        );
-        setHighScore(currentScore);
-      } else {
-        setHighScore(parsedHighScore);
+        await AsyncStorage.setItem("HIGH_SCORE", currentScore.toString());
       }
     } catch (error) {
       console.log("Error loading high score:", error);
@@ -36,15 +31,10 @@ export default function ResultScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Quiz Completed </Text>
+      <Text style={styles.title}>Quiz Completed</Text>
 
-      <Text style={styles.score}>
-        Your Score: {currentScore}
-      </Text>
-
-      <Text style={styles.highScore}>
-        Highest Score: {highScore}
-      </Text>
+      <Text style={styles.score}>Your Score: {currentScore}</Text>
+      <Text style={styles.highScore}>Highest Score: {highScore}</Text>
 
       <TouchableOpacity
         style={styles.button}

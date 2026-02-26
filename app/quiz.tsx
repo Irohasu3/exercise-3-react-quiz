@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useContext } from "react";
 import {
   View,
   Text,
@@ -7,11 +7,46 @@ import {
   ScrollView,
 } from "react-native";
 import { router } from "expo-router";
-import { questions } from "../questions";
+import { QuizContext } from "../context/QuizContext";
 
 export default function QuizScreen() {
+  const { timer, questions } = useContext(QuizContext);
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<{ [key: number]: string }>({});
+  const [timeLeft, setTimeLeft] = useState(timer);
+
+  // Reset quiz when timer changes
+  useEffect(() => {
+    setCurrentIndex(0);
+    setUserAnswers({});
+    setTimeLeft(timer);
+  }, [timer]);
+
+  // Timer countdown
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          calculateScore();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [timer]);
+
+  // Safety check if no questions exist
+  if (!questions || questions.length === 0) {
+    return (
+      <View style={styles.container}>
+        <Text style={{ fontSize: 18 }}>No questions available.</Text>
+      </View>
+    );
+  }
 
   const currentQuestion = questions[currentIndex];
   const selectedAnswer = userAnswers[currentQuestion.id];
@@ -40,42 +75,32 @@ export default function QuizScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      {/* Timer */}
+      <Text style={styles.timer}>Time Left: {timeLeft}s</Text>
+
       {/* Progress */}
       <Text style={styles.progress}>
         Question {currentIndex + 1} of {questions.length}
       </Text>
 
       {/* Question */}
-      <Text style={styles.question}>
-        {currentQuestion.question}
-      </Text>
+      <Text style={styles.question}>{currentQuestion.question}</Text>
 
       {/* Choices */}
-      {Object.entries(currentQuestion.choices).map(
-        ([key, value]) => {
-          const isSelected = selectedAnswer === key;
-
-          return (
-            <TouchableOpacity
-              key={key}
-              style={[
-                styles.choiceButton,
-                isSelected && styles.selectedChoice,
-              ]}
-              onPress={() => handleAnswer(key)}
-            >
-              <Text
-                style={[
-                  styles.choiceText,
-                  isSelected && styles.selectedText,
-                ]}
-              >
-                {key}. {value}
-              </Text>
-            </TouchableOpacity>
-          );
-        }
-      )}
+      {Object.entries(currentQuestion.choices).map(([key, value]) => {
+        const isSelected = selectedAnswer === key;
+        return (
+          <TouchableOpacity
+            key={key}
+            style={[styles.choiceButton, isSelected && styles.selectedChoice]}
+            onPress={() => handleAnswer(key)}
+          >
+            <Text style={[styles.choiceText, isSelected && styles.selectedText]}>
+              {key}. {value}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
 
       {/* Navigation Buttons */}
       <View style={styles.navigation}>
@@ -113,6 +138,12 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 20,
     backgroundColor: "#f5f7fa",
+  },
+  timer: {
+    fontSize: 18,
+    marginBottom: 10,
+    color: "red",
+    fontWeight: "bold",
   },
   progress: {
     fontSize: 16,
